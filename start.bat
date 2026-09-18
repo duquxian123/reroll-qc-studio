@@ -28,21 +28,29 @@ if not exist "%UV%" if /i not "%UV%"=="uv" (
 rem --- 首次运行：准备 Python 环境 ---
 if not exist "%ROOT%.venv\Scripts\python.exe" (
     echo.
-    echo [1/3] 首次运行，正在准备工作区内的 Python 环境，约需 1-3 分钟...
+    echo [1/4] 首次运行，正在准备工作区内的 Python 环境，约需 1-3 分钟...
     echo.
     "%UV%" sync || goto :fail
+)
+
+rem --- 首次运行：拉取人脸 / 手部测试素材（失败不影响启动，会降级为合成素材）---
+if not exist "%ROOT%data\face_assets\portrait.jpg" (
+    echo.
+    echo [2/4] 正在拉取人脸 / 手部测试素材（约 200 KB，失败会自动跳过）...
+    echo.
+    "%ROOT%.venv\Scripts\python.exe" "%ROOT%tools\fetch_face_assets.py"
 )
 
 rem --- 首次运行：生成视频资源池 ---
 if not exist "%ROOT%data\pool\labels.json" (
     echo.
-    echo [2/3] 正在生成视频资源池（约 1 分钟）...
+    echo [3/4] 正在生成视频资源池（约 1 分钟）...
     echo.
     "%ROOT%.venv\Scripts\python.exe" "%ROOT%tools\make_dataset.py" || goto :fail
 )
 
 echo.
-echo [3/3] 启动服务中，浏览器即将自动打开： http://127.0.0.1:8756
+echo [4/4] 启动服务中，浏览器即将自动打开： http://127.0.0.1:8756
 echo       关闭这个窗口即可停止服务。
 echo.
 start "" "http://127.0.0.1:8756"

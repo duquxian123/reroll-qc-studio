@@ -34,17 +34,31 @@
 
 ## 怎么启动
 
-**双击 `start.bat`**。
+### 先装两个工具（只需一次）
 
-第一次启动会自动做三件事（约 2–4 分钟）：
-1. 在工作区内准备 Python 环境（不会动你的系统）
-2. 生成 40 个合成测试视频
-3. 启动服务并自动打开浏览器
+| 需要 | 怎么装 | 干什么用 |
+|---|---|---|
+| **uv** | `winget install astral-sh.uv`（或看 [uv 文档](https://docs.astral.sh/uv/)） | 在工作区内建 `.venv`，不污染系统 |
+| **ffmpeg** | `winget install Gyan.FFmpeg` | 生成测试集、统一规格、拼接预览片 |
+
+> **不需要预装 Python**：`uv` 会把 3.12 装进本目录的 `.python/`。
+> 两个都装好后，**双击 `start.bat`**。
+
+### 第一次启动会自动做四件事（约 2–5 分钟）
+
+1. 在工作区内准备 Python 环境（约 400 MB，不动你的系统）
+2. 拉取人脸 / 手部测试素材（约 200 KB；失败会自动跳过，相关镜头降级为合成素材）
+3. 用 ffmpeg 生成 40 个合成测试视频
+4. 启动服务并自动打开浏览器
 
 之后每次双击，几秒就起来了。**关闭那个黑窗口就是停止服务。**
 
 > 环境完全落在本目录内（`.python/`、`.venv/`、`.uv-cache/`），不污染系统。
 > 想彻底删除，直接把整个文件夹删掉即可。
+
+> **平台**：启动脚本目前只有 Windows 版（`start.bat`）。代码本身不依赖 Windows，
+> macOS / Linux 上用 `uv sync` 装完依赖后手动起服务即可（见「常用命令」）；
+> 但注意依赖里的 `mediapipe==0.10.21` 在部分平台（如 Apple Silicon）可能没有对应 wheel。
 
 > **重启不丢工作**：导入的分镜表和抽到的候选会落到 `state/project.json`，
 > 采纳记录和质检配置在 `state/session.json`。重启后候选原样回来（质检结果需要
@@ -348,20 +362,27 @@ data/
 
 ## 常用命令
 
+Windows（`start.bat` 会自己设好环境变量，手动跑建议先 `set` 那几个 `UV_*`）：
+
 ```bat
-:: 自检（打印每个候选的逐项判定与准确率）
+:: 手动启动服务（不自动开浏览器）
+.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8756
+
+:: 拉取人脸 / 手部测试素材（约 200 KB）
+.venv\Scripts\python.exe tools\fetch_face_assets.py
+
+:: 自检：打印每个片段的逐项判定与准确率
 .venv\Scripts\python.exe tools\selftest.py
 .venv\Scripts\python.exe tools\selftest.py --verbose
 
-:: 阈值校准（看原始指标能不能把好坏分开）
+:: 阈值校准：把原始指标 dump 出来看分离度
 .venv\Scripts\python.exe tools\calibrate.py --csv data\calibration.csv
 
-:: 重新生成测试集
-.venv\Scripts\python.exe tools\make_dataset.py --force
-
-:: 重新生成资源池（会清空重来）
+:: 重新生成资源池（--force 会清空重来，约 1 分钟）
 .venv\Scripts\python.exe tools\make_dataset.py --force
 ```
+
+macOS / Linux 把 `.venv\Scripts\python.exe` 换成 `.venv/bin/python`，其余相同。
 
 ---
 
