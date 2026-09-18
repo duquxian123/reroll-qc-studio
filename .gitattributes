@@ -1,0 +1,17 @@
+# Windows 批处理必须是 CRLF，否则在 Linux/macOS clone 下来后可能执行异常
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 其它文本统一 LF
+*.py   text eol=lf
+*.js   text eol=lf
+*.css  text eol=lf
+*.html text eol=lf
+*.md   text eol=lf
+*.toml text eol=lf
+
+# 二进制，别做任何换行符转换
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.xlsx binary

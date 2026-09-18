@@ -1,0 +1,23 @@
+[project]
+name = "reroll-studio"
+version = "0.1.0"
+description = "本地 AI 视频审片工作台：分镜驱动的批量质检、通过判定、排名与采纳"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "python-multipart>=0.0.12",
+    "opencv-python-headless>=4.10",
+    "numpy>=1.26",
+    "pillow>=10.4",
+    # 读取 / 生成 Excel 分镜表
+    "openpyxl>=3.1",
+    # 注意：mediapipe 0.10.35 与 1.x 已移除 mp.solutions API（face_mesh / hands）。
+    # 0.10.21 是仍带 solutions API 且自带模型文件的稳定版本，因此锁死。
+    "mediapipe==0.10.21",
+]
+
+# 这不是一个可安装的包，只是一个依赖清单项目。
+# uv sync 会把依赖装进工作区内的 .venv，不污染系统环境。
+[tool.uv]
+package = false

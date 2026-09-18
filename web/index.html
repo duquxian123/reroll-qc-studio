@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reroll Studio · AI 视频审片工作台</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <h1>Reroll Studio</h1>
+    <p class="tagline">
+      下载模板 → 填好分镜 → 导入 → 抽卡（模拟调云端生成）→ 质检 → 采纳排名第一的候选。
+    </p>
+  </div>
+  <div class="actions">
+    <a class="btn ghost" id="btn-template" href="/api/template?fmt=xlsx"
+       title="下载分镜表模板（Excel，内置示例分镜已填好）">下载分镜模板</a>
+    <label class="btn ghost" title="上传分镜表（.xlsx 或 .csv）">
+      导入分镜表
+      <input type="file" id="csv-input" accept=".csv,.xlsx,.xlsm" hidden>
+    </label>
+    <button class="btn ghost" id="btn-init" title="清空当前项目，从头开始">初始化</button>
+    <button class="btn ghost" id="btn-reset" title="清空所有分镜的采纳记录">清空采纳记录</button>
+    <button class="btn ghost" id="btn-open-config">打开质检配置</button>
+    <button class="btn ghost" id="btn-draw-all" title="给还没抽过卡的分镜抽卡，每个抽几条看分镜表里的「候选数」">
+      全部抽卡
+    </button>
+    <button class="btn ghost" id="btn-run" title="只质检还没质检过的分镜">质检剩余片段</button>
+    <button class="btn ghost" id="btn-rerun" title="忽略已有结果，把所有分镜重新质检一遍">
+      质检所有片段
+    </button>
+    <button class="btn ghost" id="btn-adopt-all" title="每个已质检的分镜都采纳排名第一的候选">
+      一键采纳所有第一名
+    </button>
+    <span class="sep-v"></span>
+    <button class="btn ghost" id="btn-export"
+            title="把已采纳的片段复制到 data/selected/，统一规格并生成清单">导出采纳结果</button>
+    <button class="btn ghost" id="btn-preview"
+            title="导出后把所有采纳的片段拼成一条预览片，连起来看一遍">合成预览片</button>
+  </div>
+</header>
+
+<div class="progress-strip hidden" id="progress-strip">
+  <div class="progress-text" id="progress-text"></div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+</div>
+
+<div class="layout">
+
+  <aside class="shots-panel">
+    <div class="panel-head">
+      <h2>分镜</h2>
+      <span class="muted" id="shot-count"></span>
+    </div>
+    <div class="status-legend" id="status-legend"></div>
+    <ul id="shot-list" class="shot-list"></ul>
+  </aside>
+
+  <main class="workbench">
+    <div id="shot-header" class="shot-header"></div>
+    <div id="candidate-grid" class="candidate-grid"></div>
+    <div id="detail-panel" class="detail-panel hidden"></div>
+  </main>
+
+</div>
+
+<footer class="statusbar">
+  <div class="stats" id="stats">
+    <span class="muted">还没有质检结果，点右上角「质检剩余片段」。</span>
+  </div>
+</footer>
+
+<!-- 质检配置弹窗：改动先落在草稿里，点「保存」才统一生效 -->
+<div class="modal-overlay hidden" id="config-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>质检配置</h2>
+      <button class="btn tiny" id="btn-close-config" title="关闭">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <p class="hint">
+        勾选要跑的检测项，按住拖动可以调整先后顺序。<br>
+        带 <b class="hard-mark">硬性</b> 标记的项不通过，该候选直接判废；
+        软性项不达标的权重之和超过 <b>容忍度</b> 也会判废。
+      </p>
+      <div class="passline-row">
+        <label for="pass-line">总分线</label>
+        <input type="range" id="pass-line" min="40" max="95" step="1" value="75">
+        <span id="pass-line-val" class="val">75</span>
+      </div>
+      <div class="passline-row">
+        <label for="soft-tol">容忍度</label>
+        <input type="range" id="soft-tol" min="0" max="2" step="0.1" value="0.5">
+        <span id="soft-tol-val" class="val">0.5</span>
+      </div>
+      <ul id="check-list" class="check-list"></ul>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn ghost tiny" id="btn-select-all">全选</button>
+      <button class="btn ghost tiny" id="btn-select-fast">只选快速项</button>
+      <button class="btn ghost tiny" id="btn-select-none">全不选</button>
+      <span class="spacer"></span>
+      <span class="muted" id="config-dirty"></span>
+      <button class="btn ghost" id="btn-cancel-config">取消</button>
+      <button class="btn primary" id="btn-save-config">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 抽卡前确认分镜信息：可以直接改，改完再抽 -->
+<div class="modal-overlay hidden" id="draw-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>抽卡前确认分镜信息</h2>
+      <button class="btn tiny" id="btn-close-draw" title="关闭">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <p class="hint">
+        这些内容就是"发给生成接口的参数"（demo 里是从资源池取片段）。
+        可以直接改，改完再抽卡——真实场景下这就是"调整提示词重新生成"。
+      </p>
+      <div class="form-row">
+        <label>分镜号</label>
+        <span class="ro" id="dm-shot-id"></span>
+        <span class="ro muted" id="dm-scene"></span>
+      </div>
+      <div class="form-row">
+        <label for="dm-prompt">提示词</label>
+        <textarea id="dm-prompt" rows="3" placeholder="必填：这一镜要生成什么画面"></textarea>
+      </div>
+      <div class="form-row">
+        <label for="dm-negative">负面词</label>
+        <input type="text" id="dm-negative" placeholder="不想要的东西，例如 低质量,变形">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="dm-count">候选数</label>
+          <input type="number" id="dm-count" min="1" max="12" step="1">
+        </div>
+        <div class="form-row">
+          <label for="dm-duration">时长(秒)</label>
+          <input type="number" id="dm-duration" min="0.5" max="60" step="0.5">
+        </div>
+        <div class="form-row">
+          <label for="dm-aspect">画幅</label>
+          <input type="text" id="dm-aspect" placeholder="16:9">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="dm-faces">期望人脸数</label>
+          <input type="number" id="dm-faces" min="0" max="8" step="1" placeholder="留空=不检查">
+        </div>
+        <div class="form-row">
+          <label for="dm-hands">期望手部数</label>
+          <input type="number" id="dm-hands" min="0" max="8" step="1" placeholder="留空=不检查">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <span class="muted" id="dm-hint"></span>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="btn-cancel-draw">取消</button>
+      <button class="btn primary" id="btn-confirm-draw">确认抽卡</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

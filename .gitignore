@@ -1,0 +1,30 @@
+# 环境（全部落在工作区内，不入库）
+.python/
+.venv/
+.uv-cache/
+
+# 注意：uv.lock **故意不忽略**——这是应用项目，依赖必须可复现。
+# mediapipe 0.10.35 移除过 mp.solutions，没有 lock 别人装出来就是另一套依赖。
+
+# 生成的素材与运行态
+data/pool/
+data/samples/
+data/face_assets/
+data/_uploads/
+data/_shots/
+data/selected/
+data/calibration.csv
+state/session.json
+state/project.json
+runs/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
